@@ -5,6 +5,7 @@ import useAppStore from '../store/useStore';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { detectMediaTypeFromUrl } from '../utils/uploadHelpers';
 
 const MARKETING_OBJECTIVES = [
     'Brand Awareness',
@@ -84,7 +85,14 @@ const MediaItemEditor = ({ item, index, onUpdate, onRemove }: MediaItemEditorPro
             {item.url && (
                 <div className="relative h-24 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
                     {item.type === 'video' ? (
-                        <video src={item.url} className="w-full h-full object-cover" />
+                        <video 
+                            src={item.url} 
+                            className="w-full h-full object-cover" 
+                            controls
+                            muted
+                            playsInline
+                            preload="metadata"
+                        />
                     ) : (
                         <img src={item.url} alt={`Media ${index + 1}`} className="w-full h-full object-cover" />
                     )}
@@ -98,7 +106,11 @@ const MediaItemEditor = ({ item, index, onUpdate, onRemove }: MediaItemEditorPro
                 <input
                     type="url"
                     value={item.url}
-                    onChange={(e) => onUpdate(index, { url: e.target.value })}
+                    onChange={(e) => {
+                        const newUrl = e.target.value;
+                        const detectedType = detectMediaTypeFromUrl(newUrl);
+                        onUpdate(index, { url: newUrl, type: detectedType });
+                    }}
                     placeholder="https://files.catbox.moe/abc.jpg"
                     className="w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:border-gray-600"
                 />
@@ -461,4 +473,7 @@ const EditPostModal = ({ post, onClose }: EditPostModalProps) => {
 };
 
 export default EditPostModal;
+
+
+
 

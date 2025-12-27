@@ -29,6 +29,10 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostClick, isDraggab
     const gridMediaUrl = (post.type === 'carousel' && post.media && post.media.length > 0)
         ? post.media[0].url
         : post.visualMediaUrl;
+    
+    // Determinar si es video: reel o primer elemento del carousel es video
+    const isVideo = post.type === 'reel' || 
+        (post.type === 'carousel' && post.media && post.media.length > 0 && post.media[0].type === 'video');
 
     return (
         <div 
@@ -40,7 +44,7 @@ export const PostItem: React.FC<PostItemProps> = ({ post, onPostClick, isDraggab
             className={`relative group aspect-[9/16] cursor-pointer overflow-hidden bg-gray-800 md:rounded-lg border border-gray-800 ${isDraggable ? 'touch-none' : ''}`}
         >
             {gridMediaUrl ? (
-                post.type === 'reel' ? (
+                isVideo ? (
                     <video
                         src={gridMediaUrl}
                         className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity pointer-events-none"

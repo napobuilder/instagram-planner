@@ -79,21 +79,28 @@ const PostViewModal: React.FC<PostViewModalProps> = ({ post, onClose, onEdit }) 
                     <div className="relative z-10 w-full h-full flex items-center justify-center p-2">
                         {currentAsset.type === 'video' || post.type === 'reel' ? (
                             <video 
-                                key={`vid-${currentSlide}`} 
+                                key={`vid-${currentSlide}-${currentAsset.url}`} 
                                 src={currentAsset.url} 
                                 className="h-full w-full object-contain drop-shadow-2xl rounded-sm" 
                                 controls 
                                 autoPlay 
                                 muted 
                                 loop 
-                                playsInline 
+                                playsInline
+                                preload="auto"
+                                onError={(e) => {
+                                    console.error('Error loading video:', currentAsset.url, e);
+                                }}
                             />
                         ) : (
                             <img 
-                                key={`img-${currentSlide}`} 
+                                key={`img-${currentSlide}-${currentAsset.url}`} 
                                 src={currentAsset.url} 
                                 className="h-full w-full object-contain drop-shadow-2xl rounded-sm" 
                                 alt={post.title}
+                                onError={(e) => {
+                                    console.error('Error loading image:', currentAsset.url, e);
+                                }}
                             />
                         )}
                     </div>
