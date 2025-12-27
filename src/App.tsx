@@ -7,7 +7,7 @@ import StoryViewer from './components/StoryViewer';
 import Preloader from './components/Preloader';
 import CreatePostModal from './components/CreatePostModal';
 import EditPostModal from './components/EditPostModal';
-import { AlertTriangle, Download, Plus, Upload, Eye, Edit, FileJson } from 'lucide-react';
+import { AlertTriangle, Download, Plus, Upload, Eye, Edit, FileJson, Share2, Copy, Check } from 'lucide-react';
 import type { Post } from './store/useStore';
 
 const App = () => {
@@ -16,11 +16,14 @@ const App = () => {
         posts,
         selectedPost,
         activeStoryCategory,
+        feedId,
         STORIES_DATA,
         MAIN_DRIVE_FOLDER,
         setSelectedPost,
         setActiveStoryCategory,
-        setPosts
+        setPosts,
+        setFeedId,
+        loadFeedFromBlob
     } = store;
 
     const [loading, setLoading] = useState(true);
@@ -28,33 +31,73 @@ const App = () => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingPost, setEditingPost] = useState<Post | null>(null);
+    const [copied, setCopied] = useState(false);
     
-    // Detect mode from URL
+    // Detect mode and feedId from URL
     const urlParams = new URLSearchParams(window.location.search);
     const [mode, setMode] = useState<'edit' | 'view'>(
         (urlParams.get('mode') as 'edit' | 'view') || 'edit'
     );
-    const feedUrl = urlParams.get('feed');
+    const feedUrl = urlParams.get('feed'); // Legacy support
+    const urlFeedId = urlParams.get('feedId'); // New Blob Storage feedId
 
     const storyCategories = Object.keys(STORIES_DATA);
 
-    // Load feed from URL if provided
+    // Load feed from Blob Storage or URL if provided
     useEffect(() => {
-        if (feedUrl) {
-            fetch(feedUrl)
-                .then(res => res.json())
-                .then((data: Post[]) => {
-                    setPosts(data);
+        const loadFeed = async () => {
+            try {
+                // Priority 1: Load from Blob Storage (feedId)
+                if (urlFeedId) {
+                    setFeedId(urlFeedId);
+                    await loadFeedFromBlob(urlFeedId);
                     setLoading(false);
-                })
-                .catch(err => {
-                    console.error('Error loading feed from URL:', err);
-                    setLoading(false);
-                });
-        } else {
-            setTimeout(() => setLoading(false), 1000);
-        }
-    }, [feedUrl]);
+                    return;
+                }
+
+                // Priority 2: Legacy support - load from external URL (feed)
+                if (feedUrl) {
+                    fetch(feedUrl)
+                        .then(res => res.json())
+                        .then((data: Post[]) => {
+                            setPosts(data);
+                            setLoading(false);
+                        })
+                        .catch(err => {
+                            console.error('Error loading feed from URL:', err);
+                            setLoading(false);
+                        });
+                    return;
+                }
+
+                // Priority 3: Generate new feedId in edit mode if none exists
+                if (mode === 'edit' && !feedId) {
+                    try {
+                        const response = await fetch('/.netlify/functions/create-feed', {
+                            method: 'POST',
+                        });
+                        const data = await response.json();
+                        if (data.success && data.feedId) {
+                            setFeedId(data.feedId);
+                            // Update URL with feedId
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('feedId', data.feedId);
+                            window.history.pushState({}, '', url.toString());
+                        }
+                    } catch (error) {
+                        console.error('Error creating feed:', error);
+                    }
+                }
+
+                setLoading(false);
+            } catch (error) {
+                console.error('Error loading feed:', error);
+                setLoading(false);
+            }
+        };
+
+        loadFeed();
+    }, [urlFeedId, feedUrl, mode, feedId, setFeedId, loadFeedFromBlob, setPosts]);
 
     const handleDownloadAll = () => {
         setIsDownloading(true);
@@ -108,6 +151,31 @@ const App = () => {
         window.history.pushState({}, '', url.toString());
     };
 
+    const handleShareFeed = async () => {
+        if (!feedId) {
+            alert('No feed ID available. Please create a post first.');
+            return;
+        }
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}?feedId=${feedId}&mode=view`;
+        
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            // Fallback for browsers that don't support clipboard API
+            const textArea = document.createElement('textarea');
+            textArea.value = shareUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
     console.log('App rendering', { posts: posts.length, selectedPost, activeStoryCategory, mode });
 
     return (
@@ -130,6 +198,23 @@ const App = () => {
                 <div className="flex items-center gap-2">
                     {mode === 'edit' ? (
                         <>
+                            {feedId && (
+                                <button 
+                                    onClick={handleShareFeed}
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs md:text-sm font-bold py-2 px-3 md:px-4 rounded-full transition-all flex items-center gap-2 shadow-lg"
+                                    title="Share Feed"
+                                >
+                                    {copied ? (
+                                        <>
+                                            <Check size={16} /> <span className="hidden sm:inline">Copied!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Share2 size={16} /> <span className="hidden sm:inline">Share</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
                             <button 
                                 onClick={() => setShowCreateModal(true)}
                                 className="bg-green-600 hover:bg-green-500 text-white text-xs md:text-sm font-bold py-2 px-3 md:px-4 rounded-full transition-all flex items-center gap-2 shadow-lg"
@@ -163,7 +248,7 @@ const App = () => {
                         )}
                     </button>
 
-                    {!feedUrl && (
+                    {!feedUrl && !urlFeedId && (
                         <button 
                             onClick={toggleMode}
                             className="bg-gray-600 hover:bg-gray-500 text-white text-xs md:text-sm font-bold py-2 px-3 md:px-4 rounded-full transition-all flex items-center gap-2 shadow-lg"
@@ -178,6 +263,11 @@ const App = () => {
                                 </>
                             )}
                         </button>
+                    )}
+                    {feedId && mode === 'edit' && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">
+                            ID: {feedId.substring(0, 8)}...
+                        </div>
                     )}
                 </div>
             </nav>

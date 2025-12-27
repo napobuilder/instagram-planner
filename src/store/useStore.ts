@@ -36,13 +36,17 @@ export interface AppState {
   posts: Post[];
   selectedPost: Post | null;
   activeStoryCategory: string | null;
+  feedId: string | null;
   MAIN_DRIVE_FOLDER: string;
   STORIES_DATA: { [key: string]: StoryItem[] };
   setSelectedPost: (post: Post | null) => void;
   setActiveStoryCategory: (category: string | null) => void;
+  setFeedId: (feedId: string | null) => void;
   setPosts: (posts: Post[]) => void;
   updatePost: (updatedPost: Partial<Post>) => void;
   deletePost: (postId: number) => void;
+  loadFeedFromBlob: (feedId: string) => Promise<void>;
+  saveFeedToBlob: (feedId: string, posts: Post[]) => Promise<boolean>;
 }
 
 const MAIN_DRIVE_FOLDER = 'https://drive.google.com/drive/folders/17AmAK1bz3NqVhLCOoU3NRmGmsG4Gv6g8?usp=drive_link';
@@ -285,30 +289,101 @@ const savePostsToStorage = (posts: Post[]) => {
   }
 };
 
-const useAppStore = create<AppState>((set) => ({
+// Save feed to Netlify Blob Storage
+const saveFeedToBlobStorage = async (feedId: string, posts: Post[]): Promise<boolean> => {
+  try {
+    const response = await fetch('/.netlify/functions/save-feed', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ feedId, posts }),
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('Error saving feed to Blob Storage:', error);
+    return false;
+  }
+};
+
+// Load feed from Netlify Blob Storage
+const loadFeedFromBlobStorage = async (feedId: string): Promise<Post[] | null> => {
+  try {
+    const response = await fetch(`/.netlify/functions/get-feed?feedId=${feedId}`);
+    const data = await response.json();
+    
+    if (data.success && data.posts) {
+      return data.posts;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error loading feed from Blob Storage:', error);
+    return null;
+  }
+};
+
+const useAppStore = create<AppState>((set, get) => ({
   posts: loadPostsFromStorage(),
   selectedPost: null,
   activeStoryCategory: null,
+  feedId: null,
   MAIN_DRIVE_FOLDER: MAIN_DRIVE_FOLDER,
   STORIES_DATA: STORIES_DATA,
   setSelectedPost: (post) => set({ selectedPost: post }),
   setActiveStoryCategory: (category) => set({ activeStoryCategory: category }),
+  setFeedId: (feedId) => set({ feedId }),
   setPosts: (posts) => {
     savePostsToStorage(posts);
     set({ posts: posts });
+    
+    // Auto-save to Blob Storage if feedId exists (fire and forget)
+    const { feedId } = get();
+    if (feedId) {
+      saveFeedToBlobStorage(feedId, posts).catch(err => {
+        console.error('Failed to auto-save feed:', err);
+      });
+    }
   },
-  updatePost: (updatedPost) => set((state) => {
+  updatePost: (updatedPost) => {
+    const state = get();
     const updatedPosts = state.posts.map((post) =>
       post.id === updatedPost.id ? { ...post, ...updatedPost } : post
     );
     savePostsToStorage(updatedPosts);
-    return { posts: updatedPosts };
-  }),
-  deletePost: (postId) => set((state) => {
+    set({ posts: updatedPosts });
+    
+    // Auto-save to Blob Storage if feedId exists (fire and forget)
+    if (state.feedId) {
+      saveFeedToBlobStorage(state.feedId, updatedPosts).catch(err => {
+        console.error('Failed to auto-save feed:', err);
+      });
+    }
+  },
+  deletePost: (postId) => {
+    const state = get();
     const filteredPosts = state.posts.filter((post) => post.id !== postId);
     savePostsToStorage(filteredPosts);
-    return { posts: filteredPosts, selectedPost: null };
-  }),
+    set({ posts: filteredPosts, selectedPost: null });
+    
+    // Auto-save to Blob Storage if feedId exists (fire and forget)
+    if (state.feedId) {
+      saveFeedToBlobStorage(state.feedId, filteredPosts).catch(err => {
+        console.error('Failed to auto-save feed:', err);
+      });
+    }
+  },
+  loadFeedFromBlob: async (feedId: string) => {
+    const posts = await loadFeedFromBlobStorage(feedId);
+    if (posts) {
+      set({ posts, feedId });
+      savePostsToStorage(posts);
+    }
+  },
+  saveFeedToBlob: async (feedId: string, posts: Post[]) => {
+    return await saveFeedToBlobStorage(feedId, posts);
+  },
 }));
 
 export default useAppStore;
