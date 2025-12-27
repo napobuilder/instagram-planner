@@ -7,7 +7,7 @@ import StoryViewer from './components/StoryViewer';
 import Preloader from './components/Preloader';
 import CreatePostModal from './components/CreatePostModal';
 import EditPostModal from './components/EditPostModal';
-import { AlertTriangle, Download, Plus, Upload, Eye, Edit, FileJson, Share2, Copy, Check } from 'lucide-react';
+import { AlertTriangle, Download, Plus, Upload, Eye, Edit, FileJson, Share2, Check } from 'lucide-react';
 import type { Post } from './store/useStore';
 
 const App = () => {
