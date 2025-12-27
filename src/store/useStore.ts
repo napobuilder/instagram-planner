@@ -32,11 +32,17 @@ export interface StoryItem {
     url: string;
     duration: number;
 }
+export interface SaveStatus {
+  status: 'idle' | 'saving' | 'saved' | 'error';
+  message?: string;
+}
+
 export interface AppState {
   posts: Post[];
   selectedPost: Post | null;
   activeStoryCategory: string | null;
   feedId: string | null;
+  saveStatus: SaveStatus;
   MAIN_DRIVE_FOLDER: string;
   STORIES_DATA: { [key: string]: StoryItem[] };
   setSelectedPost: (post: Post | null) => void;
@@ -329,6 +335,7 @@ const useAppStore = create<AppState>((set, get) => ({
   selectedPost: null,
   activeStoryCategory: null,
   feedId: null,
+  saveStatus: { status: 'idle' },
   MAIN_DRIVE_FOLDER: MAIN_DRIVE_FOLDER,
   STORIES_DATA: STORIES_DATA,
   setSelectedPost: (post) => set({ selectedPost: post }),
@@ -338,12 +345,41 @@ const useAppStore = create<AppState>((set, get) => ({
     savePostsToStorage(posts);
     set({ posts: posts });
     
-    // Auto-save to Blob Storage if feedId exists (fire and forget)
+    // Auto-save to Blob Storage if feedId exists
     const { feedId } = get();
     if (feedId) {
-      saveFeedToBlobStorage(feedId, posts).catch(err => {
-        console.error('Failed to auto-save feed:', err);
-      });
+      set({ saveStatus: { status: 'saving', message: 'Guardando...' } });
+      saveFeedToBlobStorage(feedId, posts)
+        .then((success) => {
+          if (success) {
+            set({ saveStatus: { status: 'saved', message: 'Guardado en Netlify' } });
+            // Reset to idle after 2 seconds
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.saveStatus.status === 'saved') {
+                set({ saveStatus: { status: 'idle' } });
+              }
+            }, 2000);
+          } else {
+            set({ saveStatus: { status: 'error', message: 'Error al guardar' } });
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.saveStatus.status === 'error') {
+                set({ saveStatus: { status: 'idle' } });
+              }
+            }, 3000);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to auto-save feed:', err);
+          set({ saveStatus: { status: 'error', message: 'Error al guardar' } });
+          setTimeout(() => {
+            const currentState = get();
+            if (currentState.saveStatus.status === 'error') {
+              set({ saveStatus: { status: 'idle' } });
+            }
+          }, 3000);
+        });
     }
   },
   updatePost: (updatedPost) => {
@@ -354,11 +390,39 @@ const useAppStore = create<AppState>((set, get) => ({
     savePostsToStorage(updatedPosts);
     set({ posts: updatedPosts });
     
-    // Auto-save to Blob Storage if feedId exists (fire and forget)
+    // Auto-save to Blob Storage if feedId exists
     if (state.feedId) {
-      saveFeedToBlobStorage(state.feedId, updatedPosts).catch(err => {
-        console.error('Failed to auto-save feed:', err);
-      });
+      set({ saveStatus: { status: 'saving', message: 'Guardando...' } });
+      saveFeedToBlobStorage(state.feedId, updatedPosts)
+        .then((success) => {
+          if (success) {
+            set({ saveStatus: { status: 'saved', message: 'Guardado en Netlify' } });
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.saveStatus.status === 'saved') {
+                set({ saveStatus: { status: 'idle' } });
+              }
+            }, 2000);
+          } else {
+            set({ saveStatus: { status: 'error', message: 'Error al guardar' } });
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.saveStatus.status === 'error') {
+                set({ saveStatus: { status: 'idle' } });
+              }
+            }, 3000);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to auto-save feed:', err);
+          set({ saveStatus: { status: 'error', message: 'Error al guardar' } });
+          setTimeout(() => {
+            const currentState = get();
+            if (currentState.saveStatus.status === 'error') {
+              set({ saveStatus: { status: 'idle' } });
+            }
+          }, 3000);
+        });
     }
   },
   deletePost: (postId) => {
@@ -367,11 +431,39 @@ const useAppStore = create<AppState>((set, get) => ({
     savePostsToStorage(filteredPosts);
     set({ posts: filteredPosts, selectedPost: null });
     
-    // Auto-save to Blob Storage if feedId exists (fire and forget)
+    // Auto-save to Blob Storage if feedId exists
     if (state.feedId) {
-      saveFeedToBlobStorage(state.feedId, filteredPosts).catch(err => {
-        console.error('Failed to auto-save feed:', err);
-      });
+      set({ saveStatus: { status: 'saving', message: 'Guardando...' } });
+      saveFeedToBlobStorage(state.feedId, filteredPosts)
+        .then((success) => {
+          if (success) {
+            set({ saveStatus: { status: 'saved', message: 'Guardado en Netlify' } });
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.saveStatus.status === 'saved') {
+                set({ saveStatus: { status: 'idle' } });
+              }
+            }, 2000);
+          } else {
+            set({ saveStatus: { status: 'error', message: 'Error al guardar' } });
+            setTimeout(() => {
+              const currentState = get();
+              if (currentState.saveStatus.status === 'error') {
+                set({ saveStatus: { status: 'idle' } });
+              }
+            }, 3000);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to auto-save feed:', err);
+          set({ saveStatus: { status: 'error', message: 'Error al guardar' } });
+          setTimeout(() => {
+            const currentState = get();
+            if (currentState.saveStatus.status === 'error') {
+              set({ saveStatus: { status: 'idle' } });
+            }
+          }, 3000);
+        });
     }
   },
   loadFeedFromBlob: async (feedId: string) => {

@@ -7,7 +7,7 @@ import StoryViewer from './components/StoryViewer';
 import Preloader from './components/Preloader';
 import CreatePostModal from './components/CreatePostModal';
 import EditPostModal from './components/EditPostModal';
-import { AlertTriangle, Download, Plus, Upload, Eye, Edit, FileJson, Share2, Check } from 'lucide-react';
+import { AlertTriangle, Download, Plus, Upload, Eye, Edit, FileJson, Share2, Check, Save, Loader2, XCircle } from 'lucide-react';
 import type { Post } from './store/useStore';
 
 const App = () => {
@@ -17,6 +17,7 @@ const App = () => {
         selectedPost,
         activeStoryCategory,
         feedId,
+        saveStatus,
         STORIES_DATA,
         MAIN_DRIVE_FOLDER,
         setSelectedPost,
@@ -196,6 +197,35 @@ const App = () => {
                     <span>🍬</span> Captain Candy Manager
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Save Status Indicator */}
+                    {feedId && mode === 'edit' && saveStatus.status !== 'idle' && (
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            saveStatus.status === 'saving' 
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                                : saveStatus.status === 'saved'
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                        }`}>
+                            {saveStatus.status === 'saving' && (
+                                <>
+                                    <Loader2 size={14} className="animate-spin" />
+                                    <span>{saveStatus.message || 'Guardando...'}</span>
+                                </>
+                            )}
+                            {saveStatus.status === 'saved' && (
+                                <>
+                                    <Save size={14} />
+                                    <span>{saveStatus.message || 'Guardado'}</span>
+                                </>
+                            )}
+                            {saveStatus.status === 'error' && (
+                                <>
+                                    <XCircle size={14} />
+                                    <span>{saveStatus.message || 'Error'}</span>
+                                </>
+                            )}
+                        </div>
+                    )}
                     {mode === 'edit' ? (
                         <>
                             {feedId && (
