@@ -27,7 +27,7 @@ const PostViewModal: React.FC<PostViewModalProps> = ({ post, onClose, onEdit }) 
 
     // Determinar el asset actual (imagen/video)
     const isCarousel = post.type === 'carousel' && post.media && post.media.length > 0;
-    const currentAsset = isCarousel 
+    const currentAsset = isCarousel && post.media
         ? post.media[currentSlide] 
         : { type: post.type === 'reel' ? 'video' : 'image', url: post.visualMediaUrl, downloadUrl: post.downloadUrl };
 

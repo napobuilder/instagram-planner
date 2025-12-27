@@ -24,7 +24,7 @@ const App = () => {
     } = store;
 
     const [loading, setLoading] = useState(true);
-    const [progress, setProgress] = useState(0);
+    const [progress] = useState(0);
     const [isDownloading, setIsDownloading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingPost, setEditingPost] = useState<Post | null>(null);
