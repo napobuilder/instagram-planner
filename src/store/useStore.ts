@@ -42,6 +42,7 @@ export interface AppState {
   setActiveStoryCategory: (category: string | null) => void;
   setPosts: (posts: Post[]) => void;
   updatePost: (updatedPost: Partial<Post>) => void;
+  deletePost: (postId: number) => void;
 }
 
 const MAIN_DRIVE_FOLDER = 'https://drive.google.com/drive/folders/17AmAK1bz3NqVhLCOoU3NRmGmsG4Gv6g8?usp=drive_link';
@@ -262,20 +263,52 @@ const FEED_DATA: Post[] = [
     },
 ];
 
+// Load posts from localStorage or use default
+const loadPostsFromStorage = (): Post[] => {
+  try {
+    const stored = localStorage.getItem('captain-candy-posts');
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading posts from localStorage:', error);
+  }
+  return FEED_DATA;
+};
+
+// Save posts to localStorage
+const savePostsToStorage = (posts: Post[]) => {
+  try {
+    localStorage.setItem('captain-candy-posts', JSON.stringify(posts));
+  } catch (error) {
+    console.error('Error saving posts to localStorage:', error);
+  }
+};
+
 const useAppStore = create<AppState>((set) => ({
-  posts: FEED_DATA,
+  posts: loadPostsFromStorage(),
   selectedPost: null,
   activeStoryCategory: null,
   MAIN_DRIVE_FOLDER: MAIN_DRIVE_FOLDER,
   STORIES_DATA: STORIES_DATA,
   setSelectedPost: (post) => set({ selectedPost: post }),
   setActiveStoryCategory: (category) => set({ activeStoryCategory: category }),
-  setPosts: (posts) => set({ posts: posts }),
-  updatePost: (updatedPost) => set((state) => ({
-    posts: state.posts.map((post) =>
+  setPosts: (posts) => {
+    savePostsToStorage(posts);
+    set({ posts: posts });
+  },
+  updatePost: (updatedPost) => set((state) => {
+    const updatedPosts = state.posts.map((post) =>
       post.id === updatedPost.id ? { ...post, ...updatedPost } : post
-    ),
-  })),
+    );
+    savePostsToStorage(updatedPosts);
+    return { posts: updatedPosts };
+  }),
+  deletePost: (postId) => set((state) => {
+    const filteredPosts = state.posts.filter((post) => post.id !== postId);
+    savePostsToStorage(filteredPosts);
+    return { posts: filteredPosts, selectedPost: null };
+  }),
 }));
 
 export default useAppStore;
